@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>审计控制台 - EnvMonitor</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>审计控制台</h1>
+  <nav>
+    <a href="/stations">站点</a> |
+    <a href="/readings">读数</a> |
+    <a href="/alerts">告警</a> |
+    <a href="/audit">审计</a>
+  </nav>
+  <h2>事件统计</h2>
+  <div id="stats"></div>
+  <table id="audit">
+    <thead><tr><th>类型</th><th>站点</th><th>详情</th><th>时间</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    async function load() {
+      const data = await (await fetch("/api/audit")).json();
+      document.getElementById("stats").textContent = JSON.stringify(data.stats);
+      const tbody = document.querySelector("#audit tbody");
+      tbody.innerHTML = "";
+      for (const ev of data.events) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>" + ev.type + "</td><td>" + (ev.station_id || "-") + "</td><td>" + ev.detail +
+          "</td><td>" + ev.timestamp + "</td>";
+        tbody.appendChild(tr);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
