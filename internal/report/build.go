@@ -51,21 +51,24 @@ func (b *Builder) Build(stationID, month string) (Report, error) {
 		return Report{}, err
 	}
 	content := renderReport(rows, summary)
+	// Write the report file first. Only once it is durably on disk do we
+	// persist the report record as complete, so a failed write can never
+	// leave the registry claiming a report that has no file behind it.
+	path, err := b.files.Write(stationID, month, content)
+	if err != nil {
+		return Report{}, err
+	}
 	report := Report{
 		ID:        uuid.NewString(),
 		StationID: stationID,
 		Month:     month,
 		Status:    StatusComplete,
+		FilePath:  path,
 		BuiltAt:   time.Now().UTC(),
 	}
 	if err := b.registry.Save(report); err != nil {
 		return Report{}, err
 	}
-	path, err := b.files.Write(stationID, month, content)
-	if err != nil {
-		return Report{}, err
-	}
-	report.FilePath = path
 	return report, nil
 }
 
