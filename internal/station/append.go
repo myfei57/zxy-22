@@ -9,13 +9,16 @@ import (
 	"envmonitor/internal/reading"
 )
 
-// AppendSample applies the station capacity gate, durably stores the reading
-// and records the audit success event only after the reading is durable.
+// AppendSample applies the station capacity gate before durably storing the
+// reading, then records the audit success event only after the reading is
+// durable. Checking capacity first guarantees that a full station rejects the
+// sample before any reading value is written, so exhausted capacity never lets
+// new readings occupy storage.
 func AppendSample(quotas *quota.State, readings *reading.Store, recorder *audit.Recorder, stationID string, rd reading.Reading) error {
-	if err := reading.Append(readings, rd); err != nil {
+	if err := quota.Check(quotas, stationID); err != nil {
 		return err
 	}
-	if err := quota.Check(quotas, stationID); err != nil {
+	if err := reading.Append(readings, rd); err != nil {
 		return err
 	}
 	event := audit.NewEvent(
