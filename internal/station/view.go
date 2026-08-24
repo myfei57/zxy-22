@@ -11,38 +11,30 @@ import (
 
 // View is what the station page renders.
 type View struct {
-	Station        Station          `json:"station"`
+	Station        Station           `json:"station"`
 	Reading        *reading.Reading `json:"reading"`
-	CursorAt       time.Time        `json:"cursor_at"`
-	CursorLoaded   bool             `json:"cursor_loaded"`
-	QuotaRemaining int              `json:"quota_remaining"`
-	ReadingCount   int              `json:"reading_count"`
+	CursorAt       time.Time         `json:"cursor_at"`
+	CursorLoaded   bool              `json:"cursor_loaded"`
+	QuotaRemaining int               `json:"quota_remaining"`
+	ReadingCount   int               `json:"reading_count"`
 }
 
 // Viewer builds station views from the live stores.
 type Viewer struct {
-	registry  *Registry
-	readings  *reading.Store
-	quotas    *quota.State
-	cursors   map[string]*Cursor
-	snapshots map[string]reading.Reading
+	registry *Registry
+	readings *reading.Store
+	quotas   *quota.State
+	cursors  map[string]*Cursor
 }
 
 // NewViewer wires the view flow for the console.
 func NewViewer(registry *Registry, readings *reading.Store, quotas *quota.State, cursors map[string]*Cursor) *Viewer {
-	viewer := &Viewer{
-		registry:  registry,
-		readings:  readings,
-		quotas:    quotas,
-		cursors:   cursors,
-		snapshots: map[string]reading.Reading{},
+	return &Viewer{
+		registry: registry,
+		readings: readings,
+		quotas:   quotas,
+		cursors:  cursors,
 	}
-	for _, registered := range registry.List() {
-		if current, err := reading.Current(readings, registered.ID); err == nil {
-			viewer.snapshots[registered.ID] = current
-		}
-	}
-	return viewer
 }
 
 // View renders the live station view.
@@ -51,12 +43,11 @@ func (v *Viewer) View(stationID string) (View, error) {
 	if err != nil {
 		return View{}, err
 	}
-	snapshot, hasSnapshot := v.snapshots[stationID]
+	// Read the station's current reading straight from the store so the
+	// page always reflects the most recently sampled, durable value. Do
+	// not cache it: a cached snapshot would lag behind newly written
+	// samples and mislead operators into thinking sampling stalled.
 	current, currentErr := reading.Current(v.readings, stationID)
-	if hasSnapshot {
-		current = snapshot
-		currentErr = nil
-	}
 	if currentErr != nil && !errors.Is(currentErr, reading.ErrNoReadings) {
 		return View{}, currentErr
 	}
