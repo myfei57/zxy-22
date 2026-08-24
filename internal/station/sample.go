@@ -68,20 +68,25 @@ func (s *Sampler) SetProvider(provider func() float64) {
 	}
 }
 
-// Sample stores one reading and advances the sampling cursor. The cursor only
-// moves after the reading value is durable.
+// Sample durably stores one reading and advances the sampling cursor only
+// after the reading and its downstream effects are durable. AppendSample
+// persists the reading value and records the sample-success audit, Consume
+// charges the quota, and evaluate checks thresholds and raises any alerts;
+// the cursor advances last. A failure at any earlier step leaves the cursor
+// in place, so on restart the gap is visible (cursor behind, reading absent)
+// rather than silently skipped because the cursor already passed the slot.
 func (s *Sampler) Sample(at time.Time) error {
 	rd := reading.NewReading(s.stationID, s.metricID, s.currentValue(), at)
-	if err := s.cursor.Advance(rd.Timestamp); err != nil {
-		return err
-	}
 	if err := AppendSample(s.quotas, s.readings, s.recorder, s.stationID, rd); err != nil {
 		return err
 	}
 	if err := s.quotas.Consume(s.stationID); err != nil {
 		return err
 	}
-	return s.evaluate(rd)
+	if err := s.evaluate(rd); err != nil {
+		return err
+	}
+	return s.cursor.Advance(rd.Timestamp)
 }
 
 func (s *Sampler) evaluate(rd reading.Reading) error {
