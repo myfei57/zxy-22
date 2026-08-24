@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>站点控制台 - EnvMonitor</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+    .btn { margin: 0 0.25rem; cursor: pointer; }
+    #detail { margin-top: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>站点控制台</h1>
+  <nav>
+    <a href="/stations">站点</a> |
+    <a href="/readings">读数</a> |
+    <a href="/alerts">告警</a> |
+    <a href="/audit">审计</a>
+  </nav>
+  <div id="detail"></div>
+  <table id="stations">
+    <thead><tr><th>名称</th><th>流域</th><th>指标</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    async function load() {
+      const res = await fetch("/api/stations");
+      const rows = await res.json();
+      const tbody = document.querySelector("#stations tbody");
+      tbody.innerHTML = "";
+      for (const st of rows) {
+        const tr = document.createElement("tr");
+        const basin = st.basin_id;
+        tr.innerHTML = "<td>" + st.name + "</td><td>" + basin + "</td><td>" + st.metrics.join(", ") +
+          "</td><td>" + st.status + "</td>" +
+          "<td><button class='btn' onclick='view(\"" + st.id + "\")'>查看</button>" +
+          "<button class='btn' onclick='sample(\"" + st.id + "\")'>采样</button></td>";
+        tbody.appendChild(tr);
+      }
+    }
+    async function view(id) {
+      const res = await fetch("/api/stations/" + id);
+      document.getElementById("detail").textContent = JSON.stringify(await res.json(), null, 2);
+    }
+    async function sample(id) {
+      const value = prompt("采样值", "0.8");
+      if (value === null) return;
+      const res = await fetch("/api/stations/" + id + "/sample?metric=nh3&value=" + value, { method: "POST" });
+      alert(JSON.stringify(await res.json()));
+      load();
+    }
+    load();
+  </script>
+</body>
+</html>
