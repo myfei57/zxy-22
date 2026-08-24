@@ -20,8 +20,8 @@ func Mark(store *reading.Store, exceeds *reading.ExceedStore, rd reading.Reading
 		Threshold:  threshold,
 		RecordedAt: time.Now().UTC(),
 	}
-	if err := store.SetOverThreshold(rd.ID, true); err != nil {
+	if err := reading.RecordExceed(exceeds, record); err != nil {
 		return err
 	}
-	return reading.RecordExceed(exceeds, record)
+	return store.SetOverThreshold(rd.ID, true)
 }
