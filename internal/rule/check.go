@@ -21,7 +21,11 @@ type Verdict struct {
 func Check(manager *VersionManager, readings []reading.Reading) ([]Verdict, error) {
 	verdicts := make([]Verdict, 0, len(readings))
 	for _, rd := range readings {
-		threshold, err := manager.Session(rd.MetricID)
+		// Judge against the currently effective threshold (the active map),
+		// not the session snapshot cached at load time: a freshly published
+		// version must take effect immediately, stale cached values must not
+		// participate in judgement.
+		threshold, err := manager.Current(rd.MetricID)
 		if err != nil {
 			return nil, fmt.Errorf("rule: check reading %s: %w", rd.ID, err)
 		}
